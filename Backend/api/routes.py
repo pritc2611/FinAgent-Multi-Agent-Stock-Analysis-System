@@ -13,7 +13,7 @@ from core.state import (
     FinancialDataModel, AnalysisStatusResponse
 )
 from core.config import settings
-from agents.Build_graph import build_graph
+from agents.Build_graph import get_compiled_graph
 
 logger = logging.getLogger(__name__)
 
@@ -40,13 +40,15 @@ async def start_analysis(request: AnalysisRequest):
     Returns run_id immediately; stream progress via /stream/{run_id}.
     """
     run_id = str(uuid.uuid4())
-    query  = request.query.strip()
+    query = request.query.strip()
+    thread_id = (request.thread_id or "").strip() or run_id
 
     _jobs[run_id] = {
         "run_id":        run_id,
         "user_query":    query,
         "ticker":        None,  
         "status":        "pending",
+        "thread_id":     thread_id,
         "progress_step": None,
         "result":        None,
         "error":         None,
@@ -64,7 +66,7 @@ async def start_analysis(request: AnalysisRequest):
     })
 
     # Fire-and-forget async task
-    asyncio.create_task(_run_analysis(run_id, query))
+    asyncio.create_task(_run_analysis(run_id, query, thread_id))
 
     return {"run_id": run_id, "user_query": query, "status": "pending"}
 
@@ -186,6 +188,7 @@ async def list_jobs():
             "run_id":        j["run_id"],
             "user_query":    j.get("user_query", ""),
             "ticker":        j.get("ticker"),
+            "thread_id":     j.get("thread_id"),
             "status":        j["status"],
             "created_at":    j["created_at"],
             "progress_step": j.get("progress_step"),
@@ -208,7 +211,7 @@ async def list_tools():
 # Internal helpers
 # ═══════════════════════════════════════════════════════════════════════════
 
-async def _run_analysis(run_id: str, query: str):
+async def _run_analysis(run_id: str, query: str , thread_id: str):
     """
     Background coroutine that executes the LangGraph pipeline.
     Updates _jobs and _history dicts as nodes complete.
@@ -217,7 +220,7 @@ async def _run_analysis(run_id: str, query: str):
         _jobs[run_id]["status"] = "running"
 
         try:
-            app = build_graph(checkpointer=None)
+            app = await get_compiled_graph
 
             initial_state: AgentState = {
                 "user_query":        query,
@@ -237,7 +240,7 @@ async def _run_analysis(run_id: str, query: str):
                 "completed_at":      None,
             }
 
-            config      = {"configurable": {"thread_id": run_id}}
+            config      = {"configurable": {"thread_id": thread_id}}
             final_state = dict(initial_state)
 
             async for event in app.astream(initial_state, config=config, stream_mode="updates"):

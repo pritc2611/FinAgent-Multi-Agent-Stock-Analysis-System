@@ -1,0 +1,10 @@
+fastapi uvicorn 
+sse-starlette 
+python-dotenv 
+langgraph 
+langchain-core 
+fastmcp 
+yfinance 
+ddgs 
+duckduckgo-search
+aiosqlite

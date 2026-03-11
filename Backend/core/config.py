@@ -1,13 +1,7 @@
-"""
-core/config.py
-──────────────
-Centralised application configuration loaded from environment variables.
-All other modules import from here – never import os.environ directly.
-"""
-
 import os
 from dataclasses import dataclass, field
 from dotenv import load_dotenv
+from pathlib import Path
 
 load_dotenv()
 
@@ -35,9 +29,11 @@ class Settings:
     )
 
     # ── SQLite checkpoint DB ──────────────────────────────────────────────────
-    sqlite_db_path: str = "DB/finagent_checkpoints.db"
+    sqlite_db_path: str = field(
+        default_factory=lambda: str(Path(__file__).resolve().parents[1] / "DB" / "finagent_checkpoints.db")
+    )
 
-    max_concurrent_runs = os.getenv("MAX_CONCURRENT_RUNS", 3)
+    max_concurrent_runs: int = field(default_factory=lambda: int(os.getenv("MAX_CONCURRENT_RUNS", "3")))
 
     # ── FastMCP server ────────────────────────────────────────────────────────
     mcp_server_name: str = "finagent-tools"

@@ -49,7 +49,7 @@ async def chat_node(state: AgentState) -> AgentState:
     # ── LLM extraction ─────────────────────────────────────────────────
     try:
         llm = get_llm()   # no tools bound — we need clean JSON
-
+        
         system = (
             "You are a financial assistant that extracts stock information from user messages.\n"
             "Given a user message, identify the company or stock they are asking about.\n\n"

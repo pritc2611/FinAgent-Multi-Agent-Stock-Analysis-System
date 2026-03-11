@@ -1,16 +1,3 @@
-"""
-mcp/server.py
-─────────────
-FastMCP server – exposes every tool from the tools registry as an MCP
-endpoint. The LLM discovers available tools via the MCP protocol and
-calls them automatically when a query is relevant (tool binding).
-
-Run standalone:
-    python mcp/server.py
-
-Or imported and mounted inside the FastAPI app.
-"""
-
 import asyncio
 import sys
 import os

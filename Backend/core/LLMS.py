@@ -1,11 +1,3 @@
-"""
-core/llm.py
-───────────
-LLM factory. Returns a ChatAnthropic instance with MCP tools bound.
-The tools binding means the LLM can invoke any registered MCP tool
-automatically when a user query is relevant.
-"""
-
 from langchain_huggingface import HuggingFaceEndpoint , ChatHuggingFace
 from core.config import settings
 

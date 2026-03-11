@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import Optional
 from typing_extensions import TypedDict
 from pydantic import BaseModel, Field
-from datetime import datetime
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -61,6 +60,11 @@ class AnalysisRequest(BaseModel):
         ...,
         example="What do you think about Apple stock right now?",
         description="Natural language query — company name or question about a stock",
+    )
+    thread_id: Optional[str] = Field(
+        default=None,
+        example="user-42",
+        description="Stable conversation/session identifier for persistent checkpoint memory across runs.",
     )
 
 

@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from core.state import AgentState
 from tools.search_news import search_stock_news, analyze_sentiment

@@ -25,7 +25,7 @@ async def analyst_node(state: AgentState) -> AgentState:
     sentiment_score = state.get("sentiment_score", 0.0)
     pe_ratio        = financial_data.get("pe_ratio")
     errors          = list(state.get("errors", []))
-
+    
     logger.info(f"[analyst_node] Running risk assessment for {ticker}")
 
     # ── 1. Hard rule-based check (fast, always applied) ──────────────────────

@@ -76,9 +76,10 @@ def build_graph(checkpointer=None):
 
 
 async def get_compiled_graph():
-    """
-    Async factory: returns a compiled graph with AsyncSqliteSaver checkpointer.
-    Use this in FastAPI lifespan or dependency injection.
-    """
-    checkpointer = AsyncSqliteSaver.from_conn_string(settings.sqlite_db_path)
-    return build_graph(checkpointer=checkpointer)
+    global _compiled_graph
+
+    if _compiled_graph is None:
+        checkpointer = AsyncSqliteSaver.from_conn_string(settings.sqlite_db_path)
+        _compiled_graph = build_graph(checkpointer=checkpointer)
+
+    return _compiled_graph

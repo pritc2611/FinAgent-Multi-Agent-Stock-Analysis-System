@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FinAgent Console</title>
+    <meta name="description" content="Premium production-grade client for FinAgent multi-agent stock analysis backend" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <header class="topbar card-glass">
+        <div>
+          <p class="eyebrow">FinAgent Suite</p>
+          <h1>FinAgent Console</h1>
+          <p class="subtitle">Institutional-grade multi-agent stock analysis with live orchestration insight.</p>
+        </div>
+        <div class="topbar-meta">
+          <div class="status-chip" id="backendHealth">Checking backend…</div>
+          <div class="status-chip" id="streamHealth">Stream idle</div>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="panel card-glass controls-panel">
+          <div class="panel-header">
+            <h2>New Analysis</h2>
+            <span class="badge neutral">Production Mode</span>
+          </div>
+
+          <form id="analysisForm" class="stack-md">
+            <label for="query">Ask about a stock</label>
+            <textarea
+              id="query"
+              name="query"
+              rows="4"
+              required
+              placeholder="e.g. Analyze American Airlines over the next quarter with risk controls"
+            ></textarea>
+            <div class="form-actions">
+              <button id="submitBtn" type="submit">Start Analysis</button>
+              <button id="stopBtn" type="button" class="btn-secondary" disabled>Stop Stream</button>
+            </div>
+          </form>
+
+          <details class="settings stack-sm">
+            <summary>Deployment Connection Settings</summary>
+            <label for="apiBase">API Base URL</label>
+            <input id="apiBase" type="url" placeholder="https://api.yourdomain.com" />
+            <small>
+              Leave empty for same-origin mode (best for single image deployment). Set explicit API URL when frontend/backend run in separate containers.
+            </small>
+          </details>
+
+          <div class="stats-grid">
+            <article class="stat-card">
+              <p>Total Nodes Seen</p>
+              <strong id="nodeCount">0</strong>
+            </article>
+            <article class="stat-card">
+              <p>Last Run ID</p>
+              <strong id="lastRunId">—</strong>
+            </article>
+            <article class="stat-card">
+              <p>Completed Runs</p>
+              <strong id="completedCount">0</strong>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel card-glass progress-panel">
+          <div class="panel-header">
+            <h2>Live Progress</h2>
+            <span id="streamState" class="muted">No active stream.</span>
+          </div>
+          <ul id="progressList" class="timeline"></ul>
+        </section>
+
+        <section class="panel card-glass result-panel">
+          <div class="panel-header">
+            <h2>Result Brief</h2>
+            <span class="muted">Structured investment output</span>
+          </div>
+          <div id="result" class="result-placeholder">Run an analysis to see report output.</div>
+        </section>
+
+        <section class="panel card-glass history-panel">
+          <div class="panel-header">
+            <h2>Recent Jobs</h2>
+            <button id="refreshJobsBtn" type="button" class="btn-secondary">Refresh</button>
+          </div>
+          <div id="jobs"></div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="./script.js"></script>
+  </body>
+</html>
