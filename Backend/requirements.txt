@@ -12,6 +12,5 @@ aiosqlite
 sse_starlette
 langchain_huggingface
 pydantic
-asyncyio
 langchain_core
 duckduckgo_search
