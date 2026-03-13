@@ -14,10 +14,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 # Copy only requirements first for caching
-COPY requirments.txt .
+COPY requirements.txt .
 
 # Install dependencies into /install
-RUN pip install --prefix=/dependencies -r requirments.txt \
+RUN pip install --prefix=/dependencies -r requirements.txt \
  && apt-get purge -y --auto-remove build-essential
 
 
