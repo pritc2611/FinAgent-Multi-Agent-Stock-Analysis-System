@@ -38,7 +38,7 @@ jobs:
       # Build Backend Agent Image
       # ---------------------------
       - name: Build FineAgent image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/finesgent:latest .
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/finesgent:latest Backend
 
       - name: Push FineAgent
         run: docker push ${{ secrets.DOCKER_USERNAME }}/fineagent:latest
