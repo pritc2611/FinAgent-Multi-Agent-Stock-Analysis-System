@@ -1,4 +1,5 @@
-fastapi uvicorn 
+fastapi[standerd] 
+uvicorn 
 sse-starlette 
 python-dotenv 
 langgraph 
