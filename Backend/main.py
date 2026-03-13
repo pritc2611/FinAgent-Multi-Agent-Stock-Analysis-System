@@ -25,6 +25,10 @@ from fastapi.responses import FileResponse
 
 from core.config import settings
 from api.routes import router
+from agents.Build_graph import build_graph
+import aiosqlite
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -39,10 +43,16 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("="*60)
-    logger.info(f"  FinAgent API starting on port {settings.api_port}")
-    logger.info(f"  MCP Tool Server on port {settings.mcp_port}")
-    logger.info("="*60)
-    yield
+    # conn = await aiosqlite.connect(
+    #     "Multi-Agent-Financial-Analysis-System\Backend\DB\finagent_checkpoints.db"
+    # )
+
+    async with AsyncSqliteSaver.from_conn_string("checkpoints.db") as checkpointer:
+        app.state.graph = build_graph(checkpointer=checkpointer)
+        logger.info(f"  FinAgent API starting on port {settings.api_port}")
+        logger.info(f"  MCP Tool Server on port {settings.mcp_port}")
+        logger.info("="*60)
+        yield
     logger.info("FinAgent API shutting down.")
 
 

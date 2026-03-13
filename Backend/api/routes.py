@@ -13,7 +13,6 @@ from core.state import (
     FinancialDataModel, AnalysisStatusResponse
 )
 from core.config import settings
-from agents.Build_graph import get_compiled_graph
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,7 @@ _semaphore = asyncio.Semaphore(3)
 # ═══════════════════════════════════════════════════════════════════════════
 
 @router.post("/analyse", response_model=dict, summary="Start async analysis from natural-language query")
-async def start_analysis(request: AnalysisRequest):
+async def start_analysis(request: Request, payload: AnalysisRequest):
     """
     Kick off a full multi-agent analysis run asynchronously.
     Accepts a free-text query like "What do you think about Apple stock?"
@@ -40,9 +39,9 @@ async def start_analysis(request: AnalysisRequest):
     Returns run_id immediately; stream progress via /stream/{run_id}.
     """
     run_id = str(uuid.uuid4())
-    query = request.query.strip()
-    thread_id = (request.thread_id or "").strip() or run_id
-
+    query = payload.query.strip()
+    thread_id = (payload.thread_id or "").strip() or run_id
+    graph = request.app.state.graph
     _jobs[run_id] = {
         "run_id":        run_id,
         "user_query":    query,
@@ -66,7 +65,7 @@ async def start_analysis(request: AnalysisRequest):
     })
 
     # Fire-and-forget async task
-    asyncio.create_task(_run_analysis(run_id, query, thread_id))
+    asyncio.create_task(_run_analysis(run_id, query, thread_id,graph))
 
     return {"run_id": run_id, "user_query": query, "status": "pending"}
 
@@ -211,7 +210,7 @@ async def list_tools():
 # Internal helpers
 # ═══════════════════════════════════════════════════════════════════════════
 
-async def _run_analysis(run_id: str, query: str , thread_id: str):
+async def _run_analysis(run_id: str, query: str , thread_id: str,graph):
     """
     Background coroutine that executes the LangGraph pipeline.
     Updates _jobs and _history dicts as nodes complete.
@@ -220,7 +219,7 @@ async def _run_analysis(run_id: str, query: str , thread_id: str):
         _jobs[run_id]["status"] = "running"
 
         try:
-            app = await get_compiled_graph
+            app = graph
 
             initial_state: AgentState = {
                 "user_query":        query,

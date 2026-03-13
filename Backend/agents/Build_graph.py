@@ -10,6 +10,7 @@ from agents.search_node          import search_node
 from agents.analysis_node         import analyst_node
 from agents.risk_mitigation_node import risk_mitigation_node
 from agents.repoter_node        import reporter_node
+import aiosqlite
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ def route_after_analyst(state: AgentState) -> str:
 
 # ── Graph builder ─────────────────────────────────────────────────────────────
 
-def build_graph(checkpointer=None):
+def build_graph(checkpointer):
     """
     Build and compile the StateGraph.
 
@@ -74,12 +75,3 @@ def build_graph(checkpointer=None):
 
     return g.compile(checkpointer=checkpointer)
 
-
-async def get_compiled_graph():
-    global _compiled_graph
-
-    if _compiled_graph is None:
-        checkpointer = AsyncSqliteSaver.from_conn_string(settings.sqlite_db_path)
-        _compiled_graph = build_graph(checkpointer=checkpointer)
-
-    return _compiled_graph
