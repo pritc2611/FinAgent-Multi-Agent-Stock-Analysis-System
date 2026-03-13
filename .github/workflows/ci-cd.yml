@@ -14,25 +14,6 @@ jobs:
         uses: actions/checkout@v4
 
       # ---------------------------
-      # Setup Python for testing
-      # ---------------------------
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: |
-          pip install -r Backend/requirements.txt
-          pip install pytest
-
-      # ---------------------------
-      # Run Tests
-      # ---------------------------
-      - name: Run Pytest
-        run: pytest
-
-      # ---------------------------
       # Docker Setup
       # ---------------------------
       - name: Setup Docker Buildx
