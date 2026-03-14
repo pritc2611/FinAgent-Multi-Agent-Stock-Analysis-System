@@ -55,12 +55,20 @@ const PIPELINE_NODES = [
 ];
 
 // ── API helpers ───────────────────────────────────────────────────────────────
+// 1. Change the apiBase function to be permanent
 function apiBase() {
-  const manual = (els.apiBase.value || '').trim().replace(/\/$/, '');
-  return manual || 'http://localhost:8000';
+  // We ignore the input field and permanently point to the backend port
+  // Since both run in the same Space, localhost:8000 is the direct route
+  return "http://localhost:8000";
 }
 
-function endpoint(path) { return `${apiBase()}${path}`; }
+// 2. Update the endpoint function to ensure it always uses that base
+function endpoint(path) {
+  const base = apiBase();
+  // Ensure the path starts with a / if it doesn't have one
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${normalizedPath}`;
+}
 
 async function apiRequest(path, opts = {}) {
   const res = await fetch(endpoint(path), {
