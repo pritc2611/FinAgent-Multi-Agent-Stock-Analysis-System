@@ -1,33 +1,66 @@
+/* FinAgent Console — script.js
+   ─────────────────────────────────────────────────────────────────────────
+   Architecture (HuggingFace Spaces):
+     FastAPI on port 7860 serves BOTH the API (/api/v1/*) AND the frontend
+     static files (/, /style.css, /script.js).
+     The browser loads the page from https://user-space.hf.space and all
+     fetch() calls go to the SAME origin — no CORS, no port mismatch.
+
+   Local dev override:
+     If you're running frontend separately, open Connection Settings and
+     paste your backend URL. It's saved to localStorage.
+   ─────────────────────────────────────────────────────────────────────────
+*/
+
+const $ = id => document.getElementById(id);
+
 const els = {
-  form: document.getElementById('analysisForm'),
-  query: document.getElementById('query'),
-  submitBtn: document.getElementById('submitBtn'),
-  stopBtn: document.getElementById('stopBtn'),
-  apiBase: document.getElementById('apiBase'),
-  health: document.getElementById('backendHealth'),
-  streamHealth: document.getElementById('streamHealth'),
-  progressList: document.getElementById('progressList'),
-  streamState: document.getElementById('streamState'),
-  result: document.getElementById('result'),
-  jobs: document.getElementById('jobs'),
-  refreshJobsBtn: document.getElementById('refreshJobsBtn'),
-  nodeCount: document.getElementById('nodeCount'),
-  lastRunId: document.getElementById('lastRunId'),
-  completedCount: document.getElementById('completedCount'),
+  form:            $('analysisForm'),
+  query:           $('query'),
+  submitBtn:       $('submitBtn'),
+  stopBtn:         $('stopBtn'),
+  apiBase:         $('apiBase'),
+  health:          $('backendHealth'),
+  streamHealth:    $('streamHealth'),
+  progressList:    $('progressList'),
+  streamState:     $('streamState'),
+  result:          $('result'),
+  jobs:            $('jobs'),
+  refreshJobsBtn:  $('refreshJobsBtn'),
+  nodeCount:       $('nodeCount'),
+  lastRunId:       $('lastRunId'),
+  completedCount:  $('completedCount'),
 };
 
-let currentRunId = null;
-let source = null;
+let currentRunId  = null;
+let source        = null;
 let completedRuns = 0;
 const observedNodes = new Set();
 
-const storageKey = 'finagent.apiBase';
-els.apiBase.value = localStorage.getItem(storageKey) || '';
+const STORAGE_KEY = 'finagent.apiBase';
+
+// Restore any saved override
+els.apiBase.value = localStorage.getItem(STORAGE_KEY) || '';
 els.apiBase.addEventListener('change', () => {
-  localStorage.setItem(storageKey, els.apiBase.value.trim());
+  localStorage.setItem(STORAGE_KEY, els.apiBase.value.trim());
   checkHealth();
 });
 
+// ── URL resolution ────────────────────────────────────────────────────────────
+// Default is EMPTY STRING → all fetch() calls use relative URLs → same origin.
+// This works perfectly on HuggingFace Spaces where FastAPI serves the frontend.
+// Override only needed when running frontend and backend on different hosts.
+function apiBase() {
+  const override = (els.apiBase.value || localStorage.getItem(STORAGE_KEY) || '').trim().replace(/\/$/, '');
+  return override; // empty string = same-origin (correct for HF Spaces)
+}
+
+function endpoint(path) {
+  const base = apiBase();
+  return base ? `${base}${path}` : path; // relative URL when no override
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function escapeHtml(text) {
   return String(text || '')
     .replaceAll('&', '&amp;')
@@ -37,176 +70,177 @@ function escapeHtml(text) {
     .replaceAll("'", '&#039;');
 }
 
-function formatValue(value) {
-  return value === null || value === undefined || value === '' ? '—' : escapeHtml(value);
+function fv(v) {
+  return (v === null || v === undefined || v === '') ? '—' : escapeHtml(String(v));
 }
 
-function apiBase() {
-  return (els.apiBase.value || '').trim().replace(/\/$/, '');
-}
-
-function endpoint(path) {
-  const base = apiBase();
-  return base ? `${base}${path}` : path;
-}
-
-function setLoading(isLoading) {
-  els.submitBtn.disabled = isLoading;
-  els.stopBtn.disabled = !isLoading;
+function setLoading(on) {
+  els.submitBtn.disabled = on;
+  els.stopBtn.disabled   = !on;
+  els.submitBtn.textContent = on ? 'Running…' : 'Start Analysis';
 }
 
 function setStreamHealth(label, tone = 'neutral') {
   els.streamHealth.textContent = label;
-  els.streamHealth.className = `status-chip ${tone}`;
+  els.streamHealth.className   = `status-chip ${tone}`;
 }
 
 function updateStats() {
-  els.nodeCount.textContent = String(observedNodes.size);
-  els.lastRunId.textContent = currentRunId || '—';
+  els.nodeCount.textContent      = String(observedNodes.size);
+  els.lastRunId.textContent      = currentRunId || '—';
   els.completedCount.textContent = String(completedRuns);
 }
 
 async function apiRequest(path, options = {}) {
   const res = await fetch(endpoint(path), {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
   });
-
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(err || `Request failed: ${res.status}`);
+    throw new Error(err || `HTTP ${res.status}`);
   }
-
-  if (res.status === 204) {
-    return null;
-  }
-
-  return res.json();
+  return res.status === 204 ? null : res.json();
 }
 
+// ── Progress timeline ─────────────────────────────────────────────────────────
 function renderProgress(node, status, message = '') {
   observedNodes.add(node);
   updateStats();
-
   const li = document.createElement('li');
   const badgeClass = status === 'completed' ? 'ok' : status === 'error' ? 'bad' : 'warn';
-  const safeMessage = message ? `<p>${escapeHtml(message)}</p>` : '';
   li.innerHTML = `
     <div>
       <strong>${escapeHtml(node)}</strong>
-      ${safeMessage}
+      ${message ? `<p>${escapeHtml(message)}</p>` : ''}
     </div>
     <span class="badge ${badgeClass}">${escapeHtml(status)}</span>
   `;
   els.progressList.prepend(li);
 }
 
+// ── Result rendering ──────────────────────────────────────────────────────────
 function renderResult(data) {
   const fd = data.financial_data || {};
   els.result.innerHTML = `
     <article class="result-content">
       <div class="result-hero">
-        <h3>${formatValue(data.company_name || data.ticker || 'Unknown')}</h3>
-        <span class="badge neutral">${formatValue(data.ticker)}</span>
+        <h3>${fv(data.company_name || data.ticker || 'Unknown')}</h3>
+        <span class="badge neutral">${fv(data.ticker)}</span>
       </div>
-
       <div class="metric-grid">
-        <div class="metric"><p>Price</p><strong>${formatValue(fd.price)}</strong></div>
-        <div class="metric"><p>P/E</p><strong>${formatValue(fd.pe_ratio)}</strong></div>
-        <div class="metric"><p>52W High</p><strong>${formatValue(fd.week52_high)}</strong></div>
-        <div class="metric"><p>52W Low</p><strong>${formatValue(fd.week52_low)}</strong></div>
+        <div class="metric"><p>Price</p><strong>${fv(fd.price)}</strong></div>
+        <div class="metric"><p>P/E</p><strong>${fv(fd.pe_ratio)}</strong></div>
+        <div class="metric"><p>52W High</p><strong>${fv(fd.week52_high)}</strong></div>
+        <div class="metric"><p>52W Low</p><strong>${fv(fd.week52_low)}</strong></div>
       </div>
-
       <section>
         <h4>Analyst Rationale</h4>
-        <pre>${formatValue(data.analyst_rationale || 'N/A')}</pre>
+        <pre>${fv(data.analyst_rationale || 'N/A')}</pre>
       </section>
-
       <section>
         <h4>Investment Memo</h4>
-        <pre>${formatValue(data.investment_memo || 'N/A')}</pre>
+        <pre>${fv(data.investment_memo || 'N/A')}</pre>
       </section>
-
       <section>
         <h4>Hedging Strategies</h4>
-        <pre>${formatValue(data.hedging_strategies || 'N/A')}</pre>
+        <pre>${fv(data.hedging_strategies || 'N/A – no elevated risk.')}</pre>
       </section>
     </article>
   `;
 }
 
-function closeStream(streamStateText = 'No active stream.') {
-  if (source) {
-    source.close();
-    source = null;
-  }
-
+// ── SSE stream ────────────────────────────────────────────────────────────────
+function closeStream(msg = 'No active stream.') {
+  if (source) { source.close(); source = null; }
   setLoading(false);
-  els.streamState.textContent = streamStateText;
-  if (streamStateText.toLowerCase().includes('error')) {
-    setStreamHealth('Stream error', 'bad');
-  } else if (streamStateText.toLowerCase().includes('completed')) {
-    setStreamHealth('Stream completed', 'ok');
-  } else {
-    setStreamHealth('Stream idle', 'neutral');
-  }
+  els.streamState.textContent = msg;
+  const tone = msg.toLowerCase().includes('error') ? 'bad'
+             : msg.toLowerCase().includes('complet') ? 'ok'
+             : 'neutral';
+  setStreamHealth(
+    tone === 'bad' ? 'Stream error' : tone === 'ok' ? 'Stream complete' : 'Stream idle',
+    tone
+  );
 }
 
 function openStream(runId) {
   closeStream();
-  const url = endpoint(`/api/v1/stream/${runId}`);
-  source = new EventSource(url);
+  source = new EventSource(endpoint(`/api/v1/stream/${runId}`));
   els.streamState.textContent = `Streaming run ${runId}…`;
-  setStreamHealth('Streaming', 'warn');
+  setStreamHealth('Streaming…', 'warn');
 
-  source.addEventListener('progress', (event) => {
-    const data = JSON.parse(event.data);
-    renderProgress(data.node, data.status, data.message || '');
+  source.addEventListener('progress', e => {
+    const d = JSON.parse(e.data);
+    renderProgress(d.node, d.status, d.message || '');
   });
 
-  source.addEventListener('ticker', (event) => {
-    const data = JSON.parse(event.data);
-    renderProgress(`ticker:${data.ticker}`, 'running', 'Detected target symbol');
+  source.addEventListener('ticker', e => {
+    const d = JSON.parse(e.data);
+    renderProgress(`ticker: ${d.ticker}`, 'running', d.company_name || '');
   });
 
-  source.addEventListener('complete', (event) => {
-    const data = JSON.parse(event.data);
-    renderProgress('reporter', 'completed', 'Final investment memo generated');
-    renderResult(data);
-    completedRuns += 1;
+  source.addEventListener('complete', e => {
+    const d = JSON.parse(e.data);
+    renderProgress('reporter', 'completed', 'Investment brief generated');
+    renderResult(d);
+    completedRuns++;
     updateStats();
     closeStream('Completed.');
     refreshJobs();
   });
 
-  source.addEventListener('error', async (event) => {
-    console.error('SSE error', event);
+  source.addEventListener('error', async () => {
+    // SSE error — try polling fallback before giving up
     try {
       if (currentRunId) {
         const status = await apiRequest(`/api/v1/status/${currentRunId}`);
         if (status.status === 'completed') {
           const result = await apiRequest(`/api/v1/result/${currentRunId}`);
           renderResult(result);
-          renderProgress('fallback-fetch', 'completed', 'Recovered final result after stream disconnect');
-          completedRuns += 1;
+          renderProgress('fallback', 'completed', 'Recovered via polling');
+          completedRuns++;
           updateStats();
-          closeStream('Completed with fallback fetch.');
-        } else {
-          renderProgress('stream', 'running', 'Disconnected temporarily; retry by refreshing status');
-          closeStream('Stream interrupted before completion.');
+          closeStream('Completed (fallback).');
+          return;
         }
       }
-    } catch (err) {
-      closeStream(`Stream error: ${err.message}`);
-    } finally {
-      refreshJobs();
-    }
+    } catch (_) { /* ignore */ }
+    closeStream('Stream interrupted.');
+    refreshJobs();
   });
 }
 
+// ── Form submit ───────────────────────────────────────────────────────────────
+els.form.addEventListener('submit', async e => {
+  e.preventDefault();
+  const query = els.query.value.trim();
+  if (!query) return;
+
+  els.progressList.innerHTML = '';
+  observedNodes.clear();
+  updateStats();
+  els.result.innerHTML = '<div class="result-placeholder">Running analysis pipeline…</div>';
+  setLoading(true);
+
+  try {
+    const start    = await apiRequest('/api/v1/analyse', {
+      method: 'POST',
+      body:   JSON.stringify({ query }),
+    });
+    currentRunId   = start.run_id;
+    updateStats();
+    renderProgress('start', 'running', 'Run accepted by backend');
+    openStream(currentRunId);
+  } catch (err) {
+    closeStream(`Failed to start: ${err.message}`);
+  }
+});
+
+els.stopBtn.addEventListener('click', () => closeStream('Stopped by user.'));
+els.refreshJobsBtn.addEventListener('click', refreshJobs);
+
+// ── Jobs history ──────────────────────────────────────────────────────────────
 async function refreshJobs() {
   try {
     const jobs = await apiRequest('/api/v1/jobs');
@@ -214,80 +248,41 @@ async function refreshJobs() {
       els.jobs.innerHTML = '<div class="muted">No jobs yet.</div>';
       return;
     }
-
-    const completed = jobs.filter((job) => job.status === 'completed').length;
-    completedRuns = Math.max(completedRuns, completed);
+    completedRuns = Math.max(completedRuns, jobs.filter(j => j.status === 'completed').length);
     updateStats();
-
-    els.jobs.innerHTML = jobs
-      .slice(0, 12)
-      .map((job) => {
-        const cls = job.status === 'completed' ? 'ok' : job.status === 'error' ? 'bad' : 'warn';
-        return `
-          <article class="job-row">
-            <div>
-              <strong>${formatValue(job.user_query || 'Untitled query')}</strong>
-              <p class="muted">Run ID: ${formatValue(job.run_id || '-')}</p>
-            </div>
-            <div class="job-meta">
-              <span>${formatValue(job.ticker || 'UNKNOWN')}</span>
-              <span class="badge ${cls}">${formatValue(job.status || 'unknown')}</span>
-            </div>
-          </article>
-        `;
-      })
-      .join('');
+    els.jobs.innerHTML = jobs.slice(0, 12).map(job => {
+      const cls = job.status === 'completed' ? 'ok' : job.status === 'error' ? 'bad' : 'warn';
+      return `
+        <article class="job-row">
+          <div>
+            <strong>${fv(job.user_query || 'Untitled')}</strong>
+            <p class="muted">Run ID: ${fv(job.run_id)}</p>
+          </div>
+          <div class="job-meta">
+            <span>${fv(job.ticker || '??')}</span>
+            <span class="badge ${cls}">${fv(job.status)}</span>
+          </div>
+        </article>`;
+    }).join('');
   } catch (err) {
-    els.jobs.innerHTML = `<div class="muted">Unable to load jobs: ${escapeHtml(err.message)}</div>`;
+    els.jobs.innerHTML = `<div class="muted">Could not load jobs: ${escapeHtml(err.message)}</div>`;
   }
 }
 
+// ── Health check ──────────────────────────────────────────────────────────────
 async function checkHealth() {
   try {
     const data = await apiRequest('/health');
-    const isHealthy = data.status === 'healthy';
-    els.health.textContent = isHealthy ? 'Backend connected' : 'Backend check unknown';
-    els.health.className = `status-chip ${isHealthy ? 'ok' : 'warn'}`;
+    const ok   = data.status === 'healthy';
+    els.health.textContent = ok ? 'Backend connected' : 'Backend uncertain';
+    els.health.className   = `status-chip ${ok ? 'ok' : 'warn'}`;
   } catch {
     els.health.textContent = 'Backend unreachable';
-    els.health.className = 'status-chip bad';
+    els.health.className   = 'status-chip bad';
   }
 }
 
-els.form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-
-  const query = els.query.value.trim();
-  if (!query) {
-    return;
-  }
-
-  els.progressList.innerHTML = '';
-  observedNodes.clear();
-  updateStats();
-  els.result.innerHTML = '<div class="result-placeholder">Running analysis pipeline…</div>';
-
-  setLoading(true);
-  try {
-    const start = await apiRequest('/api/v1/analyse', {
-      method: 'POST',
-      body: JSON.stringify({ query }),
-    });
-    currentRunId = start.run_id;
-    updateStats();
-    renderProgress('start', 'running', 'Run accepted by backend');
-    openStream(currentRunId);
-  } catch (err) {
-    closeStream(`Failed to start analysis: ${err.message}`);
-  }
-});
-
-els.stopBtn.addEventListener('click', () => {
-  closeStream('Stream stopped by user.');
-});
-
-els.refreshJobsBtn.addEventListener('click', refreshJobs);
-
+// ── Init ──────────────────────────────────────────────────────────────────────
 checkHealth();
 refreshJobs();
 updateStats();
