@@ -42,12 +42,24 @@ function formatValue(value) {
 }
 
 function apiBase() {
-  return (els.apiBase.value || '').trim().replace(/\/$/, '');
+  // Check if there is a manual override in the UI, otherwise use the permanent backend URL
+  const manualBase = (els.apiBase.value || '').trim().replace(/\/$/, '');
+  
+  if (manualBase) {
+    return manualBase;
+  }
+
+  // PERMANENT SETTING:
+  // Since your backend runs on port 8000 in the same Hugging Face Space,
+  // the browser needs to point to the local port 8000.
+  return "http://localhost:8000"; 
 }
 
 function endpoint(path) {
   const base = apiBase();
-  return base ? `${base}${path}` : path;
+  // Ensure we don't return a relative path that defaults to port 7860
+  const finalBase = base || "http://localhost:8000";
+  return `${finalBase}${path}`;
 }
 
 function setLoading(isLoading) {
