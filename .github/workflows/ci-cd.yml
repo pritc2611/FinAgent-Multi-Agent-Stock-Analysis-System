@@ -26,19 +26,10 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       # ---------------------------
-      # Build Frontend Image
-      # ---------------------------
-      - name: Build finagent frontend image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/finagent_frontend:latest frontend
-
-      - name: Push finagent frontend
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/finagent_frontend:latest
-
-      # ---------------------------
       # Build Backend Agent Image
       # ---------------------------
       - name: Build FineAgent image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/fineagent:latest Backend
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/fineagent:latest .
 
       - name: Push FineAgent
         run: docker push ${{ secrets.DOCKER_USERNAME }}/fineagent:latest
