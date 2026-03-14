@@ -56,34 +56,11 @@ const PIPELINE_NODES = [
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 function apiBase() {
-  // 1. Manual override from the UI input takes highest priority
   const manual = (els.apiBase.value || '').trim().replace(/\/$/, '');
-  if (manual) return manual;
-
-  // 2. Saved override from localStorage
-  const saved = (localStorage.getItem(STORAGE_KEY) || '').trim().replace(/\/$/, '');
-  if (saved) return saved;
-
-  // 3. Same-origin: if the page is served by FastAPI (port 8000 or any
-  //    reverse-proxy / HuggingFace Space), use a relative base so the
-  //    browser sends requests to whatever host+port loaded the page.
-  //    This works for: HF Spaces, Docker single-image, Render, Railway, etc.
-  const { protocol, hostname, port } = window.location;
-
-  // If opened directly from disk (file://) fall back to localhost:8000
-  if (protocol === 'file:') return 'http://localhost:8000';
-
-  // If frontend is on port 8080 (separate container) target port 8000
-  if (port === '8080') return `${protocol}//${hostname}:8000`;
-
-  // Otherwise same origin (FastAPI is serving this page)
-  return '';
+  return manual || 'http://localhost:8000';
 }
 
-function endpoint(path) {
-  const base = apiBase();
-  return base ? `${base}${path}` : path;   // empty base → relative URL
-}
+function endpoint(path) { return `${apiBase()}${path}`; }
 
 async function apiRequest(path, opts = {}) {
   const res = await fetch(endpoint(path), {

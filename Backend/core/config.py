@@ -19,18 +19,14 @@ class Settings:
     api_port:  int = 8000
     api_title: str = "FinAgent – Multi-Agent Financial Analysis"
 
-    # ── CORS origins ──────────────────────────────────────────────────────────
-    # Covers: local dev, Docker same-host, HuggingFace Spaces, Render, Railway
+    # ── CORS origins (dev; lock down in prod) ─────────────────────────────────
     cors_origins: tuple = (
-        "http://localhost:8000",
+        "http://localhost:8000",   # backend itself (when serving static files)
         "http://127.0.0.1:8000",
-        "http://localhost:8080",    # frontend separate container
+        "http://localhost:8080",   # common simple HTTP server port
         "http://127.0.0.1:8080",
-        "null",                     # file:// origin
+        "null",                    # file:// origin (open index.html directly)
     )
-
-    # Regex covers HuggingFace Spaces (*.hf.space) and any reverse proxy
-    cors_origin_regex: str = r"https?://.*\.(hf\.space|huggingface\.co|vercel\.app|railway\.app|onrender\.com)(:\d+)?"
 
     # ── SQLite checkpoint DB ──────────────────────────────────────────────────
     sqlite_db_path: str = field(
