@@ -5,11 +5,11 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from core.state import AgentState
 from core.config import settings
 from agents.chat_node            import chat_node
-from agents.curent_market_data_node     import market_data_node
+from agents.current_market_data_node     import market_data_node
 from agents.search_node          import search_node
 from agents.analysis_node         import analyst_node
 from agents.risk_mitigation_node import risk_mitigation_node
-from agents.repoter_node        import reporter_node
+from agents.reporter_node        import reporter_node
 import aiosqlite
 
 logger = logging.getLogger(__name__)

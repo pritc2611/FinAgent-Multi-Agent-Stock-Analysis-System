@@ -1,189 +1,162 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FinAgent — Research Terminal</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- ── canvas for particle bg ── -->
-<canvas id="bgCanvas"></canvas>
-
-<div class="shell">
-
-  <!-- ══ TOP BAR ══════════════════════════════════════════════ -->
-  <header class="topbar">
-    <div class="topbar-left">
-      <div class="logo">
-        <span class="logo-bracket">[</span>
-        <span class="logo-text">FA</span>
-        <span class="logo-bracket">]</span>
+<div class="app-container">
+  
+  <!-- ── SIDEBAR (History & App Info) ── -->
+  <aside class="sidebar">
+    <header class="sidebar-header">
+      <div class="logo-wrap">
+        <div class="logo-box">FA</div>
+        <span class="logo-text">FinAgent</span>
       </div>
-      <div class="topbar-title">
-        <span class="title-main">FinAgent</span>
-        <span class="title-sub">RESEARCH TERMINAL v2.0</span>
-      </div>
-    </div>
-    <div class="topbar-right">
-      <div class="status-group">
-        <span class="status-led" id="healthLed"></span>
-        <span class="status-txt" id="healthTxt">CONNECTING</span>
-      </div>
-      <div class="status-group">
-        <span class="status-led neutral" id="streamLed"></span>
-        <span class="status-txt" id="streamTxt">IDLE</span>
-      </div>
-      <div class="clock" id="clock">00:00:00</div>
-    </div>
-  </header>
+      <button id="refreshHistBtn" class="btn-ghost" title="Refresh History">↺</button>
+    </header>
 
-  <!-- ══ MAIN GRID ══════════════════════════════════════════════ -->
-  <div class="main-grid">
-
-    <!-- ── LEFT COLUMN ─────────────────────────────────────── -->
-    <div class="col-left">
-
-      <!-- Query input card -->
-      <div class="card query-card">
-        <div class="card-label">NEW ANALYSIS</div>
-        <div class="query-wrap">
-          <div class="query-cursor" id="queryCursor"></div>
-          <textarea id="query" rows="3" placeholder="Ask about any stock — e.g. Analyze Apple risk for next quarter…" spellcheck="false"></textarea>
-        </div>
-        <div class="query-footer">
-          <div class="conn-mini">
-            <span class="conn-label">API</span>
-            <input id="apiBase" type="url" placeholder="same-origin (HF Space default)"/>
-          </div>
-          <div class="btn-row">
-            <button id="stopBtn" class="btn-stop" disabled>
-              <span class="btn-icon">■</span> ABORT
-            </button>
-            <button id="submitBtn" class="btn-run">
-              <span class="btn-icon" id="submitIcon">▶</span>
-              <span id="submitLabel">RUN ANALYSIS</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Pipeline viz card -->
-      <div class="card pipeline-card">
-        <div class="card-label">AGENT PIPELINE</div>
-        <div class="pipeline-track" id="pipelineTrack">
-          <!-- nodes injected by JS -->
-        </div>
-        <div class="pipeline-log" id="pipelineLog">
-          <div class="log-empty">Awaiting pipeline activation…</div>
-        </div>
-      </div>
-
-      <!-- Stats bar -->
-      <div class="stats-bar">
-        <div class="stat">
-          <span class="stat-val" id="nodeCount">0</span>
-          <span class="stat-key">NODES</span>
-        </div>
-        <div class="stat-sep">|</div>
-        <div class="stat">
-          <span class="stat-val" id="completedCount">0</span>
-          <span class="stat-key">RUNS</span>
-        </div>
-        <div class="stat-sep">|</div>
-        <div class="stat">
-          <span class="stat-val" id="runIdShort">—</span>
-          <span class="stat-key">RUN ID</span>
-        </div>
-        <div class="stat-sep">|</div>
-        <div class="stat">
-          <span class="stat-val" id="durationVal">—</span>
-          <span class="stat-key">DURATION</span>
-        </div>
-      </div>
+    <div class="history-scroll" id="historyFeed">
+      <!-- Injected by script.js -->
+      <div class="log-empty">No analyses yet.</div>
     </div>
 
-    <!-- ── RIGHT COLUMN ────────────────────────────────────── -->
-    <div class="col-right">
+    <div class="sidebar-footer" style="padding: 1rem; border-top: 1px solid var(--border);">
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span id="healthLed" class="status-led neutral" style="width: 8px; height: 8px; border-radius: 50%;"></span>
+        <span id="healthTxt" style="font-size: 0.7rem; font-weight: 600; color: var(--text-muted);">CONNECTING</span>
+      </div>
+    </div>
+  </aside>
 
-      <!-- Ticker hero -->
-      <div class="ticker-hero" id="tickerHero" style="display:none">
-        <div class="ticker-sym-wrap">
-          <span class="ticker-sym" id="tickerSym">—</span>
-          <span class="ticker-flag" id="riskFlag"></span>
-        </div>
-        <span class="ticker-company" id="tickerCompany">—</span>
-        <p class="ticker-chat" id="tickerChat"></p>
+  <!-- ── MAIN WORKSPACE ── -->
+  <main class="main-workspace">
+    
+    <div class="workspace-content">
+      
+      <!-- Left Column: Explorer & Pipeline -->
+      <div class="explorer-col">
+        
+        <!-- Search Card -->
+        <section class="input-card">
+          <label class="input-label">Terminal Query</label>
+          <div class="query-box-wrap">
+            <textarea id="query" rows="2" placeholder="e.g. Analyze Apple stock risk..." spellcheck="false"></textarea>
+          </div>
+          <div class="controls-row">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+               <input id="apiBase" type="hidden" value=""> <!-- Kept for compatibility -->
+               <div style="font-size: 0.7rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem;">
+                  <span id="streamLed" class="status-led neutral" style="width: 6px; height: 6px; border-radius: 50%;"></span>
+                  <span id="streamTxt">IDLE</span>
+               </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              <button id="stopBtn" class="btn-ghost" style="padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border); color: var(--text-muted);" disabled>STOP</button>
+              <button id="submitBtn" class="btn-primary">
+                <span id="submitIcon">▶</span>
+                <span id="submitLabel">RUN ANALYSIS</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Pipeline Explorer -->
+        <section class="pipeline-card">
+          <div class="pipeline-header">
+            <span class="input-label" style="margin: 0;">Agent Pipeline</span>
+            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">
+              RUN ID: <span id="runIdShort" style="color: var(--accent);">—</span>
+            </div>
+          </div>
+          <div class="pipeline-track" id="pipelineTrack">
+            <!-- Injected by script.js -->
+          </div>
+          <div id="pipelineLog" style="display: none;"></div> <!-- Kept for compatibility but matches sidebar style -->
+        </section>
+
       </div>
 
-      <!-- Result tabs -->
-      <div class="card result-card" id="resultCard">
-        <div class="result-empty" id="resultEmpty">
-          <div class="empty-glyph">◈</div>
-          <p>Run an analysis to generate an investment brief.</p>
+      <!-- Right Column: Results & Brief -->
+      <div class="results-col">
+        
+        <!-- Empty State -->
+        <div id="resultEmpty" class="input-card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; gap: 1rem;">
+          <div style="font-size: 2rem; opacity: 0.3;">◈</div>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Initiate analysis to see real-time data and agent results.</p>
         </div>
-        <div id="resultFull" style="display:none">
-          <!-- Metrics strip -->
-          <div class="metrics-row" id="metricsRow"></div>
-          <!-- Tabs -->
-          <div class="rtabs">
-            <button class="rtab active" data-tab="memo">BRIEF</button>
-            <button class="rtab" data-tab="risk">RISK</button>
-            <button class="rtab" data-tab="hedge">HEDGE</button>
-            <button class="rtab" data-tab="news">NEWS</button>
-          </div>
-          <div class="rtab-panels">
-            <div class="rtab-panel active" id="tab-memo"></div>
-            <div class="rtab-panel" id="tab-risk"></div>
-            <div class="rtab-panel" id="tab-hedge"></div>
-            <div class="rtab-panel" id="tab-news"></div>
-          </div>
+
+        <!-- Success Result -->
+        <div id="resultFull" style="display: none; height: 100%; flex-direction: column; gap: 1.5rem;">
+          
+          <!-- Hero Section -->
+          <section id="tickerHero" class="ticker-hero">
+            <div class="ticker-main">
+              <span id="tickerSym" class="ticker-symbol">—</span>
+              <div id="tickerFlag" class="hist-status" style="padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.6rem;"></div>
+            </div>
+            <div id="tickerCompany" class="ticker-name">—</div>
+            <p id="tickerChat" style="margin-top: 1rem; font-size: 0.85rem; color: var(--text-secondary);"></p>
+
+            <div class="metrics-grid" id="metricsRow">
+              <!-- Injected by script.js -->
+            </div>
+          </section>
+
+          <!-- Investment Brief Tabs -->
+          <section class="content-card">
+            <nav class="tabs-nav">
+              <button class="tab-btn active" data-tab="memo">SUMMARY</button>
+              <button class="tab-btn" data-tab="risk">RISK</button>
+              <button class="tab-btn" data-tab="hedge">HEDGE</button>
+              <button class="tab-btn" data-tab="news">NEWS</button>
+            </nav>
+            <div class="tab-panels">
+              <div id="tab-memo" class="tab-panel active"></div>
+              <div id="tab-risk" class="tab-panel"></div>
+              <div id="tab-hedge" class="tab-panel"></div>
+              <div id="tab-news" class="tab-panel"></div>
+            </div>
+          </section>
+
         </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- History Detail Overlay (Modals) -->
+  <div id="modalOverlay" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+    <div style="background: var(--bg-card); width: 800px; max-width: 90vw; max-height: 80vh; border-radius: 20px; border: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column;">
+      <header style="padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span id="modalTicker" style="font-size: 1.5rem; font-weight: 800; color: var(--accent); margin-right: 1rem;">—</span>
+          <span id="modalCompany" style="color: var(--text-secondary); font-weight: 500;">—</span>
+        </div>
+        <button id="modalClose" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer;">✕</button>
+      </header>
+      <div id="modalMetrics" class="metrics-grid" style="padding: 1.5rem; background: var(--bg-card-alt); margin: 0; border-radius: 0; border-left: none; border-right: none;"></div>
+      <div class="modal-tabs" style="display: flex; border-bottom: 1px solid var(--border);">
+        <button class="mtab tab-btn active" data-mtab="mmemo">BRIEF</button>
+        <button class="mtab tab-btn" data-mtab="mrisk">RISK</button>
+        <button class="mtab tab-btn" data-mtab="mhedge">HEDGE</button>
+        <button class="mtab tab-btn" data-mtab="mnews">NEWS</button>
+      </div>
+      <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 1.5rem;">
+        <div id="mmemo" class="mtab-panel tab-panel active"></div>
+        <div id="mrisk" class="mtab-panel tab-panel"></div>
+        <div id="mhedge" class="mtab-panel tab-panel"></div>
+        <div id="mnews" class="mtab-panel tab-panel"></div>
       </div>
     </div>
   </div>
 
-  <!-- ══ HISTORY FEED ══════════════════════════════════════════ -->
-  <div class="history-section">
-    <div class="history-header">
-      <span class="card-label">RECENT ANALYSES</span>
-      <button class="btn-ghost-sm" id="refreshHistBtn">↺ REFRESH</button>
-    </div>
-    <div class="history-feed" id="historyFeed">
-      <div class="log-empty">No analyses yet this session.</div>
-    </div>
-  </div>
-
-</div><!-- .shell -->
-
-<!-- History detail modal -->
-<div class="modal-overlay" id="modalOverlay" style="display:none">
-  <div class="modal-box" id="modalBox">
-    <div class="modal-header">
-      <div>
-        <span class="modal-ticker" id="modalTicker">—</span>
-        <span class="modal-company" id="modalCompany">—</span>
-      </div>
-      <button class="modal-close" id="modalClose">✕</button>
-    </div>
-    <div class="modal-metrics" id="modalMetrics"></div>
-    <div class="modal-tabs">
-      <button class="mtab active" data-mtab="mmemo">BRIEF</button>
-      <button class="mtab" data-mtab="mrisk">RISK</button>
-      <button class="mtab" data-mtab="mhedge">HEDGE</button>
-      <button class="mtab" data-mtab="mnews">NEWS</button>
-    </div>
-    <div class="modal-body">
-      <div class="mtab-panel active" id="mmemo"></div>
-      <div class="mtab-panel" id="mrisk"></div>
-      <div class="mtab-panel" id="mhedge"></div>
-      <div class="mtab-panel" id="mnews"></div>
-    </div>
-  </div>
 </div>
 
 <script src="script.js"></script>

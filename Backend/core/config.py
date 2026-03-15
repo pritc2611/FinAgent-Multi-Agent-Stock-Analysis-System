@@ -10,6 +10,7 @@ load_dotenv()
 class Settings:
     # ── LLM ──────────────────────────────────────────────────────────────────
     api_key:         str   = field(default_factory=lambda: os.environ.get("API_KEY", ""))
+    NVIDIA_API_KEY:  str   = field(default_factory=lambda: os.environ.get("API_KEY", ""))
     llm_model:       str   = "openai/gpt-oss-20b"
     llm_temperature: float = 0.2
     llm_max_tokens:  int   = 2048

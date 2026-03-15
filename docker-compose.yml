@@ -3,11 +3,11 @@ services:
   backend:
     image: cppd86/FineAgent:latest
     environment:
-      - API_KEY=value                                                     # your huggingface access token
+      - API_KEY=value                                                     # your nvidia api key
       - MAX_CONCURRENT_RUNS=10
       - LANGSMITH_TRACING=true
       - LANGSMITH_ENDPOINT=https://api.smith.langchain.com
-      - LANGSMITH_API_KEY=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
+      - LANGSMITH_API_KEY=value                                           # your langsmith project api key
       - LANGSMITH_PROJECT=Multi-Agent-Financial-Analysis-System
 
     ports:
