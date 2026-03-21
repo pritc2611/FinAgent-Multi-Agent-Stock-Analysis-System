@@ -58,6 +58,7 @@ async def fetch_market_data(ticker: str) -> dict:
             "volume": info.get("volume"),
             "sector": info.get("sector", "Unknown"),
             "industry": info.get("industry", "Unknown"),
+            "currency": info.get("curency","Unknown")
             }
 
     # Run blocking yfinance I/O in a thread pool to keep the event loop free
