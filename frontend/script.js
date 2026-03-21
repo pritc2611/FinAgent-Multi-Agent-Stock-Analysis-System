@@ -221,14 +221,34 @@ function showTicker(sym, company, chat, risk) {
   }
 }
 
+function formatCurrency(value, currency = 'USD') {
+  if (value == null || value === '' || Number.isNaN(Number(value))) return '—';
+  const safeCurrency = (typeof currency === 'string' && currency.trim()) ? currency.toUpperCase() : 'USD';
+  try {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: safeCurrency,
+      maximumFractionDigits: 2,
+    }).format(Number(value));
+  } catch {
+    return `${safeCurrency} ${Number(value).toFixed(2)}`;
+  }
+}
+
+
 function renderMetrics(data, container) {
   const fd = data.financial_data || {};
+  const score = Number(data.sentiment_score || 0);
+  const sentimentClass = score > 0 ? 'text-success' : (score < 0 ? 'text-danger' : '');
+  const sentimentLabel = score > 0 ? 'Bullish' : (score < 0 ? 'Bearish' : 'Neutral');
+
   container.innerHTML = `
-    <div class="metric-box"><div class="m-label">Price</div><div class="m-value">$${fd.price || '—'}</div></div>
-    <div class="metric-box"><div class="m-label">P/E Ratio</div><div class="m-value">${fd.pe_ratio || '—'}</div></div>
-    <div class="metric-box"><div class="m-label">Sentiment</div><div class="m-value ${data.sentiment_score > 0 ? 'text-success' : 'text-danger'}">${data.sentiment_score ? (data.sentiment_score > 0 ? 'Bullish' : 'Bearish') : 'Neutral'}</div></div>
+    <div class="metric-box"><div class="m-label">Price</div><div class="m-value">${formatCurrency(fd.price, fd.currency)}</div></div>
+    <div class="metric-box"><div class="m-label">P/E Ratio</div><div class="m-value">${fd.pe_ratio ?? '—'}</div></div>
+    <div class="metric-box"><div class="m-label">Sentiment</div><div class="m-value ${sentimentClass}">${sentimentLabel}</div></div>
   `;
 }
+
 
 function renderResult(data) {
   resultCache[data.run_id] = data;

@@ -76,6 +76,7 @@ class FinancialDataModel(BaseModel):
     company_name: Optional[str]   = None
     sector:       Optional[str]   = None
     market_cap:   Optional[float] = None
+    currency:     Optional[str]   = None
 
 
 class AnalysisResponse(BaseModel):
