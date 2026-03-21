@@ -27,6 +27,21 @@ async def get_stock_price(ticker: str) -> dict:
     from tools.curent_market_data import fetch_market_data
     return await fetch_market_data.ainvoke({"ticker": ticker})
 
+@mcp.tool()
+async def get_ticker_from_company_name(company:str) -> dict:
+    """
+    if user give any company name which you dosen't know the ticker of that company
+    so use this tool to find the company ticker symbole
+
+    this tool return the title and body where the company ticker symbole container in capital words
+    
+    and use the output and find the COMPANY TICKER SYMBOL
+    Args:
+        company_name : company name without spelling misteks 
+    """
+        
+    from tools.curent_market_data import get_ticker_from_name
+    return await get_ticker_from_name.ainvoke(company)
 
 @mcp.tool()
 async def get_historical_prices(ticker: str, period: str = "3mo") -> dict:
@@ -165,5 +180,4 @@ def tool_manifest() -> dict:
 
 
 if __name__ == "__main__":
-    print(f"Starting FastMCP server '{settings.mcp_server_name}' on port {settings.mcp_port}")
-    mcp.run(transport="sse", host=settings.mcp_host, port=settings.mcp_port)
+    mcp.run()

@@ -25,7 +25,8 @@ from core.config import settings
 from api.routes import router
 from agents.Build_graph import build_graph
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-
+from agents.Build_graph import get_mcp_tools
+import time
 
 logging.basicConfig(
     level=logging.INFO,
@@ -40,8 +41,11 @@ PORT = int(os.environ.get("PORT", 7860))
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with AsyncSqliteSaver.from_conn_string("checkpoints.db") as checkpointer:
-        app.state.graph = build_graph(checkpointer=checkpointer)
         logger.info("=" * 60)
+        mcp_tools = await get_mcp_tools()
+        logger.info(f"Loaded MCP tools: {len(mcp_tools)}")
+        app.state.graph = build_graph(checkpointer=checkpointer, mcp_tools=mcp_tools)
+        logger.info("Successfully Built Graph ")
         logger.info(f"  FinAgent running on port {PORT}")
         logger.info(f"  API docs at /docs")
         logger.info("=" * 60)

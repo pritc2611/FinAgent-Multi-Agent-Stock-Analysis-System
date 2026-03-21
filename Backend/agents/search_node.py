@@ -22,7 +22,7 @@ async def search_node(state: AgentState) -> AgentState:
         # Fetch news
         news_result = await search_stock_news.ainvoke({"ticker": ticker, "max_results": 5})
         articles    = news_result.get("articles", [])
-        headlines   = [a["title"] for a in articles if a.get("title")]
+        headlines   = [a["body"] for a in articles if a.get("body")]
         logger.info(f"[search_node] Got {len(headlines)} headlines")
     except Exception as exc:
         logger.error(f"[search_node] News fetch error: {exc}")

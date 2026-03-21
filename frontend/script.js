@@ -221,10 +221,18 @@ function showTicker(sym, company, chat, risk) {
   }
 }
 
+function formatCurrency(value, currency = "USD") {
+  if (value == null) return "—";
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: currency,
+  }).format(value);
+}
+
 function renderMetrics(data, container) {
   const fd = data.financial_data || {};
   container.innerHTML = `
-    <div class="metric-box"><div class="m-label">Price</div><div class="m-value">$${fd.price || '—'}</div></div>
+    <div class="metric-box"><div class="m-label">Price</div><div class="m-value">${formatCurrency(fd.price, fd.currency) || '—'}</div></div>
     <div class="metric-box"><div class="m-label">P/E Ratio</div><div class="m-value">${fd.pe_ratio || '—'}</div></div>
     <div class="metric-box"><div class="m-label">Sentiment</div><div class="m-value ${data.sentiment_score > 0 ? 'text-success' : 'text-danger'}">${data.sentiment_score ? (data.sentiment_score > 0 ? 'Bullish' : 'Bearish') : 'Neutral'}</div></div>
   `;

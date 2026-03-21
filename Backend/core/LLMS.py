@@ -1,6 +1,7 @@
 from langchain_huggingface import HuggingFaceEndpoint , ChatHuggingFace
 from core.config import settings
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
+import logging
 
 def get_llm(bind_tools: list | None = None) -> HuggingFaceEndpoint:
     """
@@ -25,7 +26,6 @@ def get_llm(bind_tools: list | None = None) -> HuggingFaceEndpoint:
         max_completion_tokens=settings.llm_max_tokens)
 
     if bind_tools:
+        logging.log("Seccessfully Bind all the tools")
         return Chat_llm.bind_tools(bind_tools)
-
     return Chat_llm
-

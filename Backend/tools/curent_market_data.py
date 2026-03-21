@@ -9,26 +9,29 @@ except ImportError:
 
 import re
 
+@tool
 def get_ticker_from_name(company_name):
-    query = f"SYMBOL OF {company_name} STOCK - FROM YAHOO FINANCE".upper()
+    """
+    if user give any company name which you dosen't know the ticker of that company
+    so use this tool to find the company ticker symbole
+
+    this tool return the title and body where the company ticker symbole container in capital words
     
+    and use the output and find the COMPANY TICKER SYMBOL
+    Args:
+        company_name : company name without spelling misteks 
+    """
+    query = f"SYMBOL OF {company_name} STOCK - FROM YAHOO FINANCE".upper()
+    title = []
+    body = []
     with DDGS() as ddgs:
         # Search for the top 5 results
-        results = ddgs.text(query, max_results=5)
+        results = ddgs.text(query, max_results=3)
         
-        for result in results:
-            text_to_check = result['body'] + " " + result['title']
-            
-            # Pattern to find potential tickers (2-5 uppercase letters) 
-            # often found in parentheses or after "ticker:" or "NASDAQ:"
-            match = re.search(r'\(([A-Z]{1,5})\)', text_to_check)
-            
-            if match:
-                # Return the first group that matched
-                ticker = next(group for group in match.groups() if group is not None)
-                return ticker
-                
-    return "Ticker not found"
+        for i, r in enumerate(results, 3):
+            title.append(f"{i}. {r['title']}")
+            body.append(f"   Snippet: {r['body']}\n")
+    return {"title":title,"body":body} 
 
 @tool
 async def fetch_market_data(ticker: str) -> dict:
@@ -43,8 +46,7 @@ async def fetch_market_data(ticker: str) -> dict:
         ticker: Stock symbol (e.g. AAPL, NVDA, TSLA)
     """
     def _blocking_fetch():
-        company_ticker = get_ticker_from_name(ticker)
-        stock = yf.Ticker(company_ticker.upper())
+        stock = yf.Ticker(ticker.upper())
         info  = stock.info
         return {
             "ticker":       ticker.upper(),
@@ -57,6 +59,7 @@ async def fetch_market_data(ticker: str) -> dict:
             "volume":       info.get("volume"),
             "sector":       info.get("sector", "Unknown"),
             "industry":     info.get("industry", "Unknown"),
+            "currency":     info.get("currency")
         }
 
     # Run blocking yfinance I/O in a thread pool to keep the event loop free
@@ -87,6 +90,7 @@ async def fetch_historical_prices(ticker: str, period: str = "3mo") -> dict:
             "low":    hist["Low"].round(2).tolist(),
             "close":  hist["Close"].round(2).tolist(),
             "volume": hist["Volume"].tolist(),
+            
         }
 
     loop = asyncio.get_event_loop()

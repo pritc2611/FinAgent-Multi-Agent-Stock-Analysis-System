@@ -2,6 +2,9 @@ from __future__ import annotations
 from typing import Optional
 from typing_extensions import TypedDict
 from pydantic import BaseModel, Field
+from typing import Annotated
+from langgraph.graph.message import add_messages
+from langchain_core.messages import BaseMessage
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -45,6 +48,8 @@ class AgentState(TypedDict):
     run_id:              Optional[str]
     started_at:          Optional[str]
     completed_at:        Optional[str]
+
+    messages:             Annotated[list[BaseMessage], add_messages]
 
 
 # ═══════════════════════════════════════════════════════════════════════════

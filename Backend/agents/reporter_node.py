@@ -12,6 +12,7 @@ async def reporter_node(state: AgentState) -> AgentState:
     Generates a structured Investment Brief from all accumulated state.
     Populates: state["investment_memo"], state["completed_at"]
     """
+    global financial_data
     ticker = state["ticker"].upper()
     logger.info(f"[reporter_node] Compiling Investment Brief for {ticker}")
 
@@ -48,9 +49,9 @@ async def reporter_node(state: AgentState) -> AgentState:
             f"Ticker:          {ticker}\n"
             f"Company:         {financial_data.get('company_name', ticker)}\n"
             f"Sector:          {financial_data.get('sector', 'Unknown')}\n"
-            f"Current Price:   ${financial_data.get('price', 'N/A')}\n"
-            f"52-Week High:    ${financial_data.get('week52_high', 'N/A')}\n"
-            f"52-Week Low:     ${financial_data.get('week52_low', 'N/A')}\n"
+            f"Current Price:   {financial_data.get('currency','currency')}{financial_data.get('price', 'N/A')}\n"
+            f"52-Week High:    {financial_data.get('currency','currency')}{financial_data.get('week52_high', 'N/A')}\n"
+            f"52-Week Low:     {financial_data.get('currency','currency')}{financial_data.get('week52_low', 'N/A')}\n"
             f"P/E Ratio:       {financial_data.get('pe_ratio', 'N/A')}\n"
             f"Market Cap:      {financial_data.get('market_cap', 'N/A')}\n"
             f"Sentiment:       {sentiment_score:.2f} ({sentiment_label})\n"
@@ -121,8 +122,8 @@ def _fallback_brief(ticker: str, state: AgentState, sentiment_label: str) -> str
         f"# Investment Brief – {ticker}\n"
         f"**Date:** {datetime.utcnow().strftime('%Y-%m-%d')}\n\n"
         f"## Key Metrics\n"
-        f"- Price: ${fd.get('price','N/A')} | P/E: {fd.get('pe_ratio','N/A')}\n"
-        f"- 52W High: ${fd.get('week52_high','N/A')} | Low: ${fd.get('week52_low','N/A')}\n"
+        f"- Price: {financial_data.get('currency')}{fd.get('price','N/A')} | P/E: {fd.get('pe_ratio','N/A')}\n"
+        f"- 52W High: {financial_data.get('currency')}{fd.get('week52_high','N/A')} | Low: ${fd.get('week52_low','N/A')}\n"
         f"- Sentiment: {sentiment_label}\n\n"
         f"## Risk\n"
         f"{'HIGH RISK' if state.get('risk_flag') else 'STANDARD RISK'}\n\n"

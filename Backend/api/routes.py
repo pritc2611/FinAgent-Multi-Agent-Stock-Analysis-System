@@ -249,7 +249,7 @@ async def _run_analysis(run_id: str, query: str , thread_id: str,graph):
                     _jobs[run_id]["result"]        = final_state
 
                     # Expose ticker as soon as chat_node sets it
-                    if node_name == "chat_node" and final_state.get("ticker"):
+                    if node_name == "extractore" and final_state.get("ticker"):
                         _jobs[run_id]["ticker"] = final_state["ticker"]
 
                     logger.info(f"[run {run_id}] Node completed: {node_name}")
