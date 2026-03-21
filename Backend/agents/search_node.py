@@ -11,12 +11,22 @@ async def search_node(state: AgentState) -> AgentState:
     Fetches news + scores sentiment concurrently.
     Populates: state["news_headlines"], state["sentiment_score"]
     """
-    ticker = state["ticker"].upper()
+    ticker = (state.get("ticker") or "").upper()
     logger.info(f"[search_node] Searching news for {ticker}")
 
     headlines: list[str] = []
     sentiment_score: float = 0.0
     errors = list(state.get("errors", []))
+
+    if not ticker or ticker == "UNKNOWN":
+        msg = "search_node: skipped news search because ticker is unresolved"
+        logger.warning(f"[search_node] {msg}")
+        return {
+            **state,
+            "news_headlines": ["Ticker unresolved; skipping news search."],
+            "sentiment_score": 0.0,
+            "errors": errors + [msg],
+        }
 
     try:
         # Fetch news

@@ -1,6 +1,7 @@
 from tools.curent_market_data import fetch_market_data, fetch_historical_prices, compare_stocks
 from tools.search_news import search_stock_news, search_hedging_strategies, search_sector_analysis, analyze_sentiment
 from tools.analysis    import calculate_risk_score, calculate_fair_value_range, generate_position_sizing
+from tools.ticker_resolver import resolve_ticker_symbol
 
 # ── Master registry ────────────────────────────────────────────────────────
 ALL_TOOLS: list = [
@@ -14,6 +15,9 @@ ALL_TOOLS: list = [
     search_hedging_strategies,
     search_sector_analysis,
     analyze_sentiment,
+
+    # Ticker resolution tool
+    resolve_ticker_symbol,
 
     # Analysis & calculation tools
     calculate_risk_score,
