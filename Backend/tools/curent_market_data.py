@@ -37,27 +37,28 @@ async def fetch_market_data(ticker: str) -> dict:
 
     Returns current price, 52-week high/low, P/E ratio, market cap,
     volume, and company name. Use this whenever the user asks about
-    stock price, valuation metrics, or market performance.
-
+    Fetch live market data for an exact stock ticker using yfinance.
+    
     Args:
-        ticker: Stock symbol (e.g. AAPL, NVDA, TSLA)
+        ticker: Exchange-specific stock symbol (e.g. AAPL, RELIANCE.NS, 7203.T)
     """
     def _blocking_fetch():
-        company_ticker = get_ticker_from_name(ticker)
-        stock = yf.Ticker(company_ticker.upper())
-        info  = stock.info
+        symbol = (ticker or "").upper().strip()
+        stock = yf.Ticker(symbol)
+        info = stock.info or {}
+        
         return {
-            "ticker":       ticker.upper(),
-            "company_name": info.get("longName", ticker),
-            "price":        _safe_float(info.get("currentPrice") or info.get("regularMarketPrice")),
-            "week52_high":  _safe_float(info.get("fiftyTwoWeekHigh")),
-            "week52_low":   _safe_float(info.get("fiftyTwoWeekLow")),
-            "pe_ratio":     _safe_float(info.get("trailingPE")),
-            "market_cap":   info.get("marketCap"),
-            "volume":       info.get("volume"),
-            "sector":       info.get("sector", "Unknown"),
-            "industry":     info.get("industry", "Unknown"),
-        }
+            "ticker": symbol,
+            "company_name": info.get("longName", symbol),
+            "price": _safe_float(info.get("currentPrice") or info.get("regularMarketPrice")),
+            "week52_high": _safe_float(info.get("fiftyTwoWeekHigh")),
+            "week52_low": _safe_float(info.get("fiftyTwoWeekLow")),
+            "pe_ratio": _safe_float(info.get("trailingPE")),
+            "market_cap": info.get("marketCap"),
+            "volume": info.get("volume"),
+            "sector": info.get("sector", "Unknown"),
+            "industry": info.get("industry", "Unknown"),
+            }
 
     # Run blocking yfinance I/O in a thread pool to keep the event loop free
     loop = asyncio.get_event_loop()
@@ -75,19 +76,18 @@ async def fetch_historical_prices(ticker: str, period: str = "3mo") -> dict:
     """
     def _blocking():
         stock = yf.Ticker(ticker.upper())
-        hist  = stock.history(period=period)
+        hist = stock.history(period=period)
         if hist.empty:
             return {"error": f"No historical data for {ticker}"}
         return {
             "ticker": ticker.upper(),
             "period": period,
-            "dates":  hist.index.strftime("%Y-%m-%d").tolist(),
-            "open":   hist["Open"].round(2).tolist(),
-            "high":   hist["High"].round(2).tolist(),
-            "low":    hist["Low"].round(2).tolist(),
-            "close":  hist["Close"].round(2).tolist(),
-            "volume": hist["Volume"].tolist(),
-        }
+            "dates": hist.index.strftime("%Y-%m-%d").tolist(),
+            "open": hist["Open"].round(2).tolist(),
+            "high": hist["High"].round(2).tolist(),
+            "low": hist["Low"].round(2).tolist(),
+            "close": hist["Close"].round(2).tolist(),
+            "volume": hist["Volume"].tolist(),        }
 
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _blocking)
