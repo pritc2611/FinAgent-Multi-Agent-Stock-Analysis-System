@@ -37,7 +37,7 @@ async def chat_node(state: AgentState) -> AgentState:
     query = (state.get("user_query") or "").strip()
     errors = list(state.get("errors", []))
 
-    logger.info(f"[chat_node] Received query: query")
+    logger.info(f"[chat_node] Received query: {query}")
 
     # ── LLM extraction ─────────────────────────────────────────────────
     try:

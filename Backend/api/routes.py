@@ -306,6 +306,7 @@ def _state_to_response(state: dict) -> AnalysisResponse:
             company_name=fd.get("company_name"),
             sector=fd.get("sector"),
             market_cap=fd.get("market_cap"),
+            currency=fd.get("currency"),
         ) if fd else None,
         news_headlines=state.get("news_headlines"),
         sentiment_score=state.get("sentiment_score"),

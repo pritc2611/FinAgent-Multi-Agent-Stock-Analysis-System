@@ -20,6 +20,11 @@ const el = {
   streamLed:     $('streamLed'),
   streamTxt:     $('streamTxt'),
   runIdShort:    $('runIdShort'),
+  progressLabel: $('progressLabel'),
+  progressPct:   $('progressPct'),
+  progressFill:  $('progressFill'),
+  activityFeed:  $('activityFeed'),
+  activityCount: $('activityCount'),
   pipelineTrack: $('pipelineTrack'),
   tickerHero:    $('tickerHero'),
   tickerSym:     $('tickerSym'),
@@ -43,6 +48,7 @@ let currentRunId   = null;
 let source         = null;
 const resultCache  = {};
 const STORAGE_KEY  = 'finagent.apiBase';
+let activityEvents = [];
 
 // ── Pipeline node definitions ─────────────────────────────────────────────────
 const NODES = [
@@ -89,6 +95,58 @@ function buildPipeline() {
   });
 }
 
+function getNodeMeta(nodeId) {
+  return NODES.find(n => n.id === nodeId) || { label: nodeId, tip: '' };
+}
+
+function formatNowTime() {
+  return new Date().toLocaleTimeString([], { hour12: false });
+}
+
+function addActivity(message, isHighlight = false) {
+  const item = {
+    time: formatNowTime(),
+    text: message,
+    highlight: !!isHighlight,
+  };
+  activityEvents = [...activityEvents.slice(-29), item];
+  renderActivity();
+}
+
+function renderActivity() {
+  if (!el.activityFeed) return;
+  if (!activityEvents.length) {
+    el.activityFeed.innerHTML = '<div class="activity-empty">Run an analysis to view live agent decisions and execution steps.</div>';
+    if (el.activityCount) el.activityCount.textContent = '0 events';
+    return;
+  }
+
+  el.activityFeed.innerHTML = activityEvents.map(evt => `
+    <div class="activity-item ${evt.highlight ? 'highlight' : ''}">
+      <div class="activity-time">${evt.time}</div>
+      <div class="activity-text">${evt.text}</div>
+    </div>
+  `).join('');
+  if (el.activityCount) el.activityCount.textContent = `${activityEvents.length} events`;
+  el.activityFeed.scrollTop = el.activityFeed.scrollHeight;
+}
+
+function resetTransparency() {
+  activityEvents = [];
+  renderActivity();
+  updatePipelineProgress(0, 'Waiting to start');
+}
+
+function updatePipelineProgress(doneCount = 0, label = 'Processing') {
+  const total = NODES.length;
+  const clampedDone = Math.max(0, Math.min(doneCount, total));
+  const pct = Math.round((clampedDone / total) * 100);
+  if (el.progressFill) el.progressFill.style.width = `${pct}%`;
+  if (el.progressPct) el.progressPct.textContent = `${pct}%`;
+  if (el.progressLabel) el.progressLabel.textContent = label;
+}
+
+
 function setNodeState(nodeId, state) {
   const nodeEl = $(`node-${nodeId}`);
   const statusEl = $(`status-${nodeId}`);
@@ -108,6 +166,7 @@ function setNodeState(nodeId, state) {
 
 function clearPipeline() {
   NODES.forEach(n => setNodeState(n.id, 'idle'));
+  resetTransparency();
 }
 
 // ── API Helpers ───────────────────────────────────────────────────────────────
@@ -146,16 +205,32 @@ function openStream(runId) {
     const d = JSON.parse(e.data);
     showTicker(d.ticker, d.company_name, d.chat_response);
     setNodeState('chat_node', 'done');
+    addActivity(`Ticker identified: ${d.ticker || 'Unknown'} (${d.company_name || 'Unknown company'}).`, true);
+    updatePipelineProgress(1, 'Ticker extracted, pipeline running');
   });
 
   source.addEventListener('progress', e => {
     const d = JSON.parse(e.data);
-    setNodeState(d.node, 'running');
+        const idx = NODES.findIndex(n => n.id === d.node);
+    if (idx >= 0) {
+      NODES.forEach((n, i) => {
+        if (i < idx) setNodeState(n.id, 'done');
+        else if (i === idx) setNodeState(n.id, 'running');
+      });
+    } else {
+      setNodeState(d.node, 'running');
+    }
+    const meta = getNodeMeta(d.node);
+    const completed = idx >= 0 ? idx : 0;
+    addActivity(`${meta.label} is running — ${meta.tip}.`);
+    updatePipelineProgress(completed, `Executing ${meta.label}`);
   });
 
   source.addEventListener('complete', e => {
     const d = JSON.parse(e.data);
     NODES.forEach(n => setNodeState(n.id, 'done'));
+    updatePipelineProgress(NODES.length, 'Analysis completed');
+    addActivity('All agents completed. Final report is ready.', true);
     renderResult(d);
     closeStream('done');
     refreshHistory();
@@ -175,6 +250,7 @@ function openStream(runId) {
         }
       }
     } catch (_) {}
+    addActivity('Stream interrupted; checking latest run status...', true);
     closeStream('error');
   });
 }
@@ -198,6 +274,8 @@ function setLoading(on) {
   if (on) {
     el.resultEmpty.style.display = 'flex';
     el.resultFull.style.display  = 'none';
+    addActivity('Analysis started. Waiting for agent pipeline events...', true);
+    updatePipelineProgress(0, 'Initializing analysis');
   }
 }
 
@@ -221,11 +299,43 @@ function showTicker(sym, company, chat, risk) {
   }
 }
 
-function formatCurrency(value, currency = 'USD') {
+function inferCurrencyFromTicker(ticker) {
+  if (!ticker || typeof ticker !== 'string') return 'USD';
+  const t = ticker.toUpperCase();
+  if (t.endsWith('.NS') || t.endsWith('.BO')) return 'INR';
+  if (t.endsWith('.L')) return 'GBP';
+  if (t.endsWith('.TO') || t.endsWith('.V')) return 'CAD';
+  if (t.endsWith('.AX')) return 'AUD';
+  if (t.endsWith('.HK')) return 'HKD';
+  if (t.endsWith('.T')) return 'JPY';
+  if (t.endsWith('.SS') || t.endsWith('.SZ')) return 'CNY';
+  if (t.endsWith('.PA') || t.endsWith('.DE') || t.endsWith('.AS') || t.endsWith('.MI')) return 'EUR';
+  return 'USD';
+}
+
+function localeForCurrency(currency = 'USD') {
+  const code = (currency || 'USD').toUpperCase();
+  return {
+    INR: 'en-IN',
+    GBP: 'en-GB',
+    CAD: 'en-CA',
+    AUD: 'en-AU',
+    HKD: 'en-HK',
+    JPY: 'ja-JP',
+    CNY: 'zh-CN',
+    EUR: 'de-DE',
+    USD: 'en-US',
+  }[code] || 'en-US';
+}
+
+function formatCurrency(value, currency = 'USD', ticker = '') {
   if (value == null || value === '' || Number.isNaN(Number(value))) return '—';
-  const safeCurrency = (typeof currency === 'string' && currency.trim()) ? currency.toUpperCase() : 'USD';
+  const incomingCurrency = (typeof currency === 'string' && currency.trim()) ? currency.toUpperCase() : '';
+  const safeCurrency = (!incomingCurrency || incomingCurrency === 'UNKNOWN')
+    ? inferCurrencyFromTicker(ticker)
+    : incomingCurrency;
   try {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(localeForCurrency(safeCurrency), {
       style: 'currency',
       currency: safeCurrency,
       maximumFractionDigits: 2,
@@ -234,7 +344,6 @@ function formatCurrency(value, currency = 'USD') {
     return `${safeCurrency} ${Number(value).toFixed(2)}`;
   }
 }
-
 
 function renderMetrics(data, container) {
   const fd = data.financial_data || {};
@@ -358,6 +467,7 @@ el.submitBtn.onclick = async () => {
   setLoading(true);
   clearPipeline();
   el.runIdShort.textContent = '...';
+  addActivity(`Query submitted: "${query}"`, true);
   
   try {
     const res = await apiReq('/api/v1/analyse', {
@@ -366,9 +476,11 @@ el.submitBtn.onclick = async () => {
     });
     currentRunId = res.run_id;
     el.runIdShort.textContent = res.run_id.slice(0, 8);
+    addActivity(`Run created: ${res.run_id}`);
     openStream(res.run_id);
   } catch (e) {
     alert('Error starting analysis: ' + e.message);
+    addActivity(`Failed to start run: ${e.message}`, true);
     setLoading(false);
   }
 };

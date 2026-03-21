@@ -73,8 +73,29 @@
               RUN ID: <span id="runIdShort" style="color: var(--accent);">—</span>
             </div>
           </div>
+          <div class="pipeline-overview">
+            <div class="progress-row">
+              <div class="progress-meta">
+                <span id="progressLabel">Waiting to start</span>
+                <span id="progressPct">0%</span>
+              </div>
+              <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+              </div>
+            </div>
+          </div>
           <div class="pipeline-track" id="pipelineTrack">
             <!-- Injected by script.js -->
+          </div>
+          
+          <div class="activity-card">
+            <div class="activity-head">
+              <span>Live Agent Activity</span>
+              <span id="activityCount">0 events</span>
+            </div>
+            <div id="activityFeed" class="activity-feed">
+              <div class="activity-empty">Run an analysis to view live agent decisions and execution steps.</div>
+            </div>
           </div>
           <div id="pipelineLog" style="display: none;"></div> <!-- Kept for compatibility but matches sidebar style -->
         </section>

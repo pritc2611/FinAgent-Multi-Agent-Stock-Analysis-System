@@ -6,6 +6,21 @@ from core.LLMS import get_llm
 logger = logging.getLogger(__name__)
 
 
+def _symbol_from_currency(currency: str | None) -> str:
+    if not currency:
+        return ""
+    return {
+        "USD": "$",
+        "INR": "₹",
+        "GBP": "£",
+        "EUR": "€",
+        "JPY": "¥",
+        "CNY": "¥",
+        "HKD": "HK$",
+    }.get(str(currency).upper(), "")
+
+
+
 async def reporter_node(state: AgentState) -> AgentState:
     """
     Node 5 (terminal) – Reporter
@@ -29,6 +44,10 @@ async def reporter_node(state: AgentState) -> AgentState:
         else "Neutral"
     )
 
+    currency_code = (financial_data.get("currency") or "").upper() or "USD"
+    currency_symbol = _symbol_from_currency(currency_code)
+    currency_prefix = f"{currency_symbol} " if currency_symbol else ""
+
     investment_memo = ""
 
     try:
@@ -48,9 +67,10 @@ async def reporter_node(state: AgentState) -> AgentState:
             f"Ticker:          {ticker}\n"
             f"Company:         {financial_data.get('company_name', ticker)}\n"
             f"Sector:          {financial_data.get('sector', 'Unknown')}\n"
-            f"Current Price:   ${financial_data.get('price', 'N/A')}\n"
-            f"52-Week High:    ${financial_data.get('week52_high', 'N/A')}\n"
-            f"52-Week Low:     ${financial_data.get('week52_low', 'N/A')}\n"
+            f"Currency Code:   {currency_code}\n"
+            f"Current Price:   {currency_prefix}{financial_data.get('price', 'N/A')}\n"
+            f"52-Week High:    {currency_prefix}{financial_data.get('week52_high', 'N/A')}\n"
+            f"52-Week Low:     {currency_prefix}{financial_data.get('week52_low', 'N/A')}\n"
             f"P/E Ratio:       {financial_data.get('pe_ratio', 'N/A')}\n"
             f"Market Cap:      {financial_data.get('market_cap', 'N/A')}\n"
             f"Sentiment:       {sentiment_score:.2f} ({sentiment_label})\n"
@@ -117,12 +137,16 @@ def _extract_text(response) -> str:
 
 def _fallback_brief(ticker: str, state: AgentState, sentiment_label: str) -> str:
     fd = state.get("financial_data") or {}
+    currency_code = (fd.get("currency") or "").upper() or "USD"
+    currency_symbol = _symbol_from_currency(currency_code)
+    currency_prefix = f"{currency_symbol} " if currency_symbol else ""
     return (
         f"# Investment Brief – {ticker}\n"
         f"**Date:** {datetime.utcnow().strftime('%Y-%m-%d')}\n\n"
         f"## Key Metrics\n"
-        f"- Price: ${fd.get('price','N/A')} | P/E: {fd.get('pe_ratio','N/A')}\n"
-        f"- 52W High: ${fd.get('week52_high','N/A')} | Low: ${fd.get('week52_low','N/A')}\n"
+        f"- Currency: {currency_code}\n"
+        f"- Price: {currency_prefix}{fd.get('price','N/A')} | P/E: {fd.get('pe_ratio','N/A')}\n"
+        f"- 52W High: {currency_prefix}{fd.get('week52_high','N/A')} | Low: {currency_prefix}{fd.get('week52_low','N/A')}\n"
         f"- Sentiment: {sentiment_label}\n\n"
         f"## Risk\n"
         f"{'HIGH RISK' if state.get('risk_flag') else 'STANDARD RISK'}\n\n"
