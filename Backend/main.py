@@ -39,6 +39,7 @@ PORT = int(os.environ.get("PORT", 7860))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    os.makedirs(os.path.dirname(settings.sqlite_db_path), exist_ok=True)
     async with AsyncSqliteSaver.from_conn_string(settings.sqlite_db_path) as checkpointer:
         app.state.graph = build_graph(checkpointer=checkpointer)
         logger.info("=" * 60)
