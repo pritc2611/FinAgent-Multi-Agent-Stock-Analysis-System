@@ -39,7 +39,7 @@ PORT = int(os.environ.get("PORT", 7860))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with AsyncSqliteSaver.from_conn_string("checkpoints.db") as checkpointer:
+    async with AsyncSqliteSaver.from_conn_string(settings.sqlite_db_path) as checkpointer:
         app.state.graph = build_graph(checkpointer=checkpointer)
         logger.info("=" * 60)
         logger.info(f"  FinAgent running on port {PORT}")

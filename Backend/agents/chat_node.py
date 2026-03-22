@@ -10,24 +10,6 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-
-_STOPWORDS = {
-    "stock",
-    "share",
-    "shares",
-    "company",
-    "from",
-    "in",
-    "of",
-    "for",
-    "about",
-    "please",
-    "analyze",
-    "analysis",
-    "tell",
-    "me",
-}
-
 async def chat_node(state: AgentState) -> AgentState:
     """
     Node 0 – Chat Node
@@ -41,6 +23,7 @@ async def chat_node(state: AgentState) -> AgentState:
 
     # ── LLM extraction ─────────────────────────────────────────────────
     try:
+
         llm = get_llm(bind_tools=[resolve_ticker_symbol])   # no tools bound — we need clean JSON
         
         system = (
@@ -57,17 +40,17 @@ async def chat_node(state: AgentState) -> AgentState:
                     "role": "user",
                     "content": (
                         f"User message: {query}\n"
-                        "Find the exact ticker for stock analysis."
                     ),
                 },
             ]
         )
+        logger.info(f"[chat_node] invoked : {ai_msg}")
         
         resolved = await _resolve_from_tool_calls(ai_msg, query)
-        if not resolved:
-            resolved = await _fallback_resolve(query)
+        logger.info(f"[chat_node] resolved output : {resolved}")
                 
-        ticker, company_name = _parse_resolution(resolved)
+        ticker, company_name = await _parse_resolution(resolved)
+        logger.info(f"[chat_node] resolved output : {ticker,company_name}")
     
 
         chat_response = (
@@ -92,25 +75,6 @@ async def chat_node(state: AgentState) -> AgentState:
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────
-
-async def _fallback_resolve(query: str) -> dict[str, Any]:
-    country_hint = _extract_country_hint(query)
-    candidates = [query, _strip_noise_words(query)]
-    seen: set[str] = set()
-    for candidate in candidates:
-        cand = (candidate or "").strip()
-        if not cand or cand.lower() in seen:
-            continue
-        seen.add(cand.lower())
-        payload = await resolve_ticker_symbol.ainvoke(
-            {"company_query": cand, "country_hint": country_hint}
-        )
-        if (payload or {}).get("status") == "ok":
-            return payload
-        if (payload or {}).get("matches"):
-            return payload
-    
-    return {"status": "not_found", "query": query, "matches": []}
 
 def _build_state(
     state: AgentState,
@@ -148,6 +112,7 @@ async def _resolve_from_tool_calls(ai_msg: Any, query: str) -> dict[str, Any] | 
 
         company_query = (args.get("company_query") or query).strip()
         country_hint = (args.get("country_hint") or "").strip()
+        country_hint = _extract_country_hint(query)
 
         return await resolve_ticker_symbol.ainvoke(
             {"company_query": company_query, "country_hint": country_hint}
@@ -156,93 +121,38 @@ async def _resolve_from_tool_calls(ai_msg: Any, query: str) -> dict[str, Any] | 
     return None
 
 
-def _parse_resolution(payload: dict[str, Any]) -> tuple[str, str]:
+async def _parse_resolution(payload: dict[str, Any]) -> tuple[str, str]:
     if not isinstance(payload, dict):
         raise ValueError("Ticker resolver returned invalid payload")
 
-    selected = payload.get("selected") or {}
-    matches = payload.get("matches") or []
-    status = (payload.get("status") or "").lower().strip()
+    system = f""""Acting as a extractor, extract the company and ticker symbol mentioned in the user's request. and never ever breake strict rules
+                  
+    strict rule:- Provide the details in this JSON format:
+    {{ "ticker" : "XXXX", "company_name" : "Full Company Name Inc." }}
+    
+    1. don't call any tools, just extract what you have said
+    2. never ever give empty output, you must give the output  
+    3. format must be in json, as mentioned                    
+    
 
-    candidate = selected if selected else (matches[0] if matches else None)
-    if not candidate:
-        raise ValueError(f"No ticker candidates found: {payload}")
+    User Query: {payload}"""
 
-    ticker = str(candidate.get("ticker") or "").upper().strip()
-    company_name = str(candidate.get("company_name") or ticker).strip()
-    confidence = float(candidate.get("confidence") or 0.0)
+    llm = get_llm()
+    output = await llm.ainvoke(system)
 
-    if not ticker:
-        raise ValueError(f"Ticker missing in resolver payload: {payload}")
+    import re
+    import json
 
-    if status == "not_found" or confidence < 0.45:
-        raise ValueError(f"Low-confidence ticker resolution: {payload}")
+    clean_output = json.loads(re.sub(r'```json\n|```', '', output.content).strip())
 
-    return ticker, company_name
-
-async def _resolve_from_tool_calls(ai_msg: Any, query: str) -> dict[str, Any] | None:
-    tool_calls = getattr(ai_msg, "tool_calls", None) or []
-    if not tool_calls:
-        return None
-
-    for call in tool_calls:
-        name = _safe_tool_field(call, "name")
-        if name != resolve_ticker_symbol.name:
-            continue
-
-        args = _safe_tool_field(call, "args") or {}
-        if isinstance(args, str):
-            try:
-                args = json.loads(args)
-            except json.JSONDecodeError:
-                args = {"company_query": args}
-
-        if not isinstance(args, dict):
-            args = {"company_query": query}
-
-        company_query = str(args.get("company_query") or query).strip()
-        country_hint = str(args.get("country_hint") or _extract_country_hint(query)).strip()
-
-        return await resolve_ticker_symbol.ainvoke(
-            {"company_query": company_query, "country_hint": country_hint}
-        )
-
-    return None
-
-
-def _safe_tool_field(call: Any, key: str) -> Any:
-    if isinstance(call, dict):
-        return call.get(key)
-    return getattr(call, key, None)
-
-
-def _parse_resolution(payload: dict[str, Any]) -> tuple[str, str]:
-    if not isinstance(payload, dict):
-        raise ValueError("Ticker resolver returned invalid payload")
-
-    selected = payload.get("selected") or {}
-    matches = payload.get("matches") or []
-    status = str(payload.get("status") or "").lower().strip()
-
-    candidate = selected if selected else (matches[0] if matches else None)
-    if not candidate:
-        raise ValueError(f"No ticker candidates found: {payload}")
-
-    ticker = str(candidate.get("ticker") or "").upper().strip()
-    company_name = str(candidate.get("company_name") or ticker).strip()
-    confidence = float(candidate.get("confidence") or 0.0)
-
-    if not ticker:
-        raise ValueError(f"Ticker missing in resolver payload: {payload}")
-    if status == "not_found" or confidence < 0.45:
-        raise ValueError(f"Low-confidence ticker resolution: {payload}")
-
+    ticker = clean_output["ticker"]
+    company_name = clean_output["company_name"]                       
     return ticker, company_name
 
 
 def _extract_country_hint(query: str) -> str:
     q = (query or "").lower()
-    if "india" in q or "indian" in q:
+    if "india" in q or "indian"  in q:
         return "india"
     if "japan" in q:
         return "japan"
@@ -258,8 +168,3 @@ def _extract_country_hint(query: str) -> str:
         return "us"
     return ""
 
-
-def _strip_noise_words(query: str) -> str:
-    words = re.findall(r"[a-zA-Z0-9\.]+", query or "")
-    kept = [w for w in words if w.lower() not in _STOPWORDS]
-    return " ".join(kept).strip()
