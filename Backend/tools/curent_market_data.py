@@ -8,6 +8,7 @@ except ImportError:
     from duckduckgo_search import DDGS
 
 import re
+import requests
 
 def get_ticker_from_name(company_name):
     query = f"SYMBOL OF {company_name} STOCK - FROM YAHOO FINANCE".upper()
@@ -43,8 +44,12 @@ async def fetch_market_data(ticker: str) -> dict:
         ticker: Exchange-specific stock symbol (e.g. AAPL, RELIANCE.NS, 7203.T)
     """
     def _blocking_fetch():
+        
+        session = requests.Session()
+        session.headers.update({'User-Agent': 'Mozilla/5.0'})
+
         symbol = (ticker or "").upper().strip()
-        stock = yf.Ticker(symbol)
+        stock = yf.Ticker(symbol,session=session)
         info = stock.info or {}
         
         return {
