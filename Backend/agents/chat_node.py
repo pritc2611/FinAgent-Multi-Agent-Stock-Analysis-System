@@ -60,7 +60,7 @@ async def chat_node(state: AgentState) -> AgentState:
         logger.info("[chat_node] Resolved ticker: %s (%s)", ticker, company_name)
 
     except Exception as exc:
-        logger.error(f"[chat_node] Extraction failed: exc")
+        logger.error(f"[chat_node] Extraction failed: {exc}")
         errors.append(f"chat_node: {exc}")
         # Graceful fallback — ask the user to clarify
         ticker        = "UNKNOWN"
