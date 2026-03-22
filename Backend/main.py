@@ -49,6 +49,7 @@ async def lifespan(app: FastAPI):
     logger.info("FinAgent shutting down.")
 
 
+
 app = FastAPI(
     title=settings.api_title,
     version="1.0.0",
