@@ -18,8 +18,8 @@ def get_llm(bind_tools: list | None = None) -> HuggingFaceEndpoint:
         )
     
     Chat_llm = ChatNVIDIA(
-        model="mistralai/devstral-2-123b-instruct-2512",
-        nvidia_api_key=settings.NVIDIA_API_KEY, 
+        model=settings.llm_model,
+        nvidia_api_key=settings.API_KEY, 
         temperature=settings.llm_temperature,
         top_p=0.95,
         max_completion_tokens=settings.llm_max_tokens)
